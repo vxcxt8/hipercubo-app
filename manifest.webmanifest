@@ -1,0 +1,12 @@
+{
+  "name": "Hipercubo Interactivo",
+  "short_name": "Hipercubo",
+  "description": "Explora y gira hipercubos de 0D a 9D.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020205",
+  "theme_color": "#020205"
+}

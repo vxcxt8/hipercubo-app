@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#020205">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hipercubo">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Hipercubo Interactivo - Edición Móvil</title>
+<style>
+*{box-sizing:border-box}
+html,body{
+ margin:0;width:100%;height:100%;height:100dvh;
+ overflow:hidden;background:#020205;color:#e0e0e0;
+ font-family:system-ui,sans-serif;
+ overscroll-behavior:none;touch-action:none;
+}
+body{position:fixed;inset:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ui-overlay{
+ position:absolute;top:max(12px,env(safe-area-inset-top));
+ left:max(12px,env(safe-area-inset-left));z-index:10;
+ max-width:min(310px,calc(100vw - 24px));
+ transition:opacity .35s ease,transform .35s ease;
+ touch-action:manipulation
+}
+.card{
+ background:rgba(10,10,20,.92);backdrop-filter:blur(15px);
+ border:1px solid rgba(0,255,255,.3);padding:14px;
+ border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.75);
+ width:100%
+}
+h1{
+ margin:0;font-size:clamp(1rem,4vw,1.35rem);
+ color:#00ffff;text-transform:uppercase;letter-spacing:1.3px
+}
+.dimension-badge{
+ font-size:2rem;font-weight:800;color:white;
+ margin:3px 0;display:flex;align-items:baseline;gap:5px
+}
+.dimension-badge span{font-size:.85rem;color:#00ffff}
+.controls-help{
+ margin-top:9px;font-size:.75rem;line-height:1.4;
+ color:#ccc;border-top:1px solid #ffffff19;padding-top:8px
+}
+.controls-help p{margin:4px 0}
+.key{
+ display:inline-block;background:#444;color:white;
+ padding:1px 5px;border-radius:4px;font-family:monospace
+}
+button{font:inherit;-webkit-tap-highlight-color:transparent}
+button#close-btn{
+ margin-top:10px;width:100%;min-height:42px;
+ background:#00ffff;border:0;color:black;padding:10px;
+ border-radius:9px;font-weight:800;touch-action:manipulation
+}
+#stats{
+ position:absolute;right:max(10px,env(safe-area-inset-right));
+ top:max(12px,env(safe-area-inset-top));z-index:4;
+ font-family:monospace;font-size:.68rem;line-height:1.5;
+ color:rgba(0,255,255,.7);text-align:right;
+ pointer-events:none;text-shadow:0 1px 4px black
+}
+.hidden{
+ opacity:0;transform:scale(.92) translateY(-10px);
+ pointer-events:none
+}
+#mobile-controls{
+ position:absolute;z-index:8;
+ left:max(12px,env(safe-area-inset-left));
+ right:max(12px,env(safe-area-inset-right));
+ bottom:max(12px,env(safe-area-inset-bottom));
+ display:none;align-items:end;justify-content:space-between;
+ gap:12px;pointer-events:none
+}
+.control-cluster{pointer-events:auto;display:grid;gap:7px}
+.direction-pad{
+ display:grid;grid-template-columns:repeat(3,48px);
+ grid-template-rows:repeat(2,48px);gap:6px
+}
+.touch-key,.dim-key,#menu-toggle{
+ border:1px solid rgba(0,255,255,.45);
+ color:#eaffff;background:rgba(8,18,30,.82);
+ box-shadow:0 4px 14px rgba(0,0,0,.35);
+ border-radius:12px;font-weight:800;
+ touch-action:none;user-select:none;-webkit-user-select:none
+}
+.touch-key{font-size:1.15rem}
+.touch-key.active,.dim-key.active{
+ background:#00dede;color:#001014;transform:scale(.96)
+}
+.direction-pad [data-key="w"]{grid-column:2;grid-row:1}
+.direction-pad [data-key="a"]{grid-column:1;grid-row:2}
+.direction-pad [data-key="s"]{grid-column:2;grid-row:2}
+.direction-pad [data-key="d"]{grid-column:3;grid-row:2}
+.dimension-pad{
+ display:grid;grid-template-columns:repeat(5,38px);gap:5px
+}
+.dim-key{min-height:38px;font-size:.9rem}
+#menu-toggle{
+ pointer-events:auto;min-width:46px;min-height:42px;
+ padding:8px 10px;font-size:.8rem
+}
+@media(pointer:coarse),(max-width:700px){
+ #mobile-controls{display:flex}
+ #ui-overlay{max-width:min(260px,calc(100vw - 24px))}
+ .card{padding:11px}
+ .dimension-badge{font-size:1.7rem}
+ .controls-help{font-size:.68rem}
+ #stats{
+  top:auto;
+  bottom:calc(max(12px,env(safe-area-inset-bottom)) + 118px)
+ }
+}
+@media(max-width:380px){
+ .direction-pad{
+  grid-template-columns:repeat(3,42px);
+  grid-template-rows:repeat(2,42px)
+ }
+ .dimension-pad{grid-template-columns:repeat(5,32px)}
+ .dim-key{min-height:34px}
+ #stats{font-size:.58rem}
+}
+@media(orientation:landscape) and (max-height:500px){
+ #ui-overlay{max-width:210px;top:8px;left:8px}
+ .card{padding:8px}
+ h1{font-size:.95rem}
+ .dimension-badge{font-size:1.35rem}
+ .controls-help{display:none}
+ #close-btn{min-height:34px;padding:6px}
+ #mobile-controls{bottom:7px;left:8px;right:8px}
+ .direction-pad{
+  grid-template-columns:repeat(3,38px);
+  grid-template-rows:repeat(2,38px)
+ }
+ .dimension-pad{grid-template-columns:repeat(5,30px)}
+ .dim-key{min-height:30px}
+ #stats{bottom:8px;right:8px}
+}
+</style>
+</head>
+<body>
+
+<div id="ui-overlay">
+ <div class="card">
+  <h1 id="shape-name">Cargando...</h1>
+  <div class="dimension-badge">
+   <div id="dim-number">4</div><span>D</span>
+  </div>
+  <div id="tutorial-content">
+   <div class="controls-help">
+    <p><span class="key">0</span> - <span class="key">9</span> Dimensión</p>
+    <p><span class="key">W</span> <span class="key">S</span> Rotar vertical</p>
+    <p><span class="key">A</span> <span class="key">D</span> Rotar horizontal</p>
+    <p>En 3D–9D: arrastra la figura con el dedo o ratón para girarla.</p>
+   </div>
+   <button id="close-btn" onclick="toggleMenu()">ENTENDIDO / OK</button>
+  </div>
+ </div>
+</div>
+
+<div id="stats">
+ VÉRTICES: <span id="v-count">0</span> |
+ ARISTAS: <span id="e-count">0</span>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div id="mobile-controls" aria-label="Controles táctiles">
+ <div class="control-cluster">
+  <div class="direction-pad">
+   <button class="touch-key" data-key="w">▲</button>
+   <button class="touch-key" data-key="a">◀</button>
+   <button class="touch-key" data-key="s">▼</button>
+   <button class="touch-key" data-key="d">▶</button>
+  </div>
+  <div class="dimension-pad">
+   <button class="dim-key" data-dim="0">0</button>
+   <button class="dim-key" data-dim="1">1</button>
+   <button class="dim-key" data-dim="2">2</button>
+   <button class="dim-key" data-dim="3">3</button>
+   <button class="dim-key" data-dim="4">4</button>
+   <button class="dim-key" data-dim="5">5</button>
+   <button class="dim-key" data-dim="6">6</button>
+   <button class="dim-key" data-dim="7">7</button>
+   <button class="dim-key" data-dim="8">8</button>
+   <button class="dim-key" data-dim="9">9</button>
+  </div>
+ </div>
+ <button id="menu-toggle">MENÚ</button>
+</div>
+
+<script>
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d',{
+ alpha:false,desynchronized:true
+});
+
+let width,height;
+let currentDim=4;
+let vertices=[];
+let edges=[];
+let angles=[];
+let pos1D=0;
+let scale0D=6;
+let tick9D=0;
+
+const shapeNames=[
+ "Punto","Línea","Cuadrado","Cubo","Teseracto",
+ "Penteracto","Hexeracto","Hepteracto","Octeracto","Enea-racto"
+];
+
+const dimColors=[
+ "#FFFFFF","#39FF14","#FBFF00","#FF007F","#00F5FF",
+ "#FF4500","#FF0000","#9400D3","#00FFAB","#E0FFFF"
+];
+
+const keys={w:false,a:false,s:false,d:false};
+
+function toggleMenu(){
+ document.getElementById('ui-overlay').classList.add('hidden');
+}
+
+function resize(){
+ width=window.innerWidth;
+ height=window.innerHeight;
+
+ const isMobile=
+  window.matchMedia('(pointer: coarse)').matches||width<700;
+
+ // Menor resolución interna para ahorrar recursos.
+ const dpr=Math.min(
+  window.devicePixelRatio||1,
+  isMobile?1.15:1.75
+ );
+
+ canvas.width=Math.round(width*dpr);
+ canvas.height=Math.round(height*dpr);
+ canvas.style.width=width+'px';
+ canvas.style.height=height+'px';
+
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+window.addEventListener('resize',resize);
+resize();
+
+function generateVertices(n){
+ if(n===0)return [[0]];
+
+ let v=[];
+ let total=Math.pow(2,n);
+
+ for(let i=0;i<total;i++){
+  let p=[];
+  for(let j=0;j<n;j++){
+   p.push((i>>j)&1?1:-1);
+  }
+  v.push(p);
+ }
+ return v;
+}
+
+function generateEdges(n){
+ let e=[];
+ if(n<1)return e;
+
+ let total=Math.pow(2,n);
+
+ for(let i=0;i<total;i++){
+  for(let j=0;j<n;j++){
+   let neighbor=i^(1<<j);
+   if(neighbor>i)e.push([i,neighbor]);
+  }
+ }
+ return e;
+}
+
+function initShape(n){
+ currentDim=n;
+ vertices=generateVertices(n);
+ edges=generateEdges(n);
+
+ let numPlanes=(n*(n-1))/2;
+ angles=new Array(numPlanes).fill(0);
+
+ pos1D=0;
+ scale0D=6;
+ tick9D=0;
+
+ document.getElementById('shape-name').innerText=
+  shapeNames[n]||`${n}-Cubo`;
+
+ document.getElementById('dim-number').innerText=n;
+ document.getElementById('v-count').innerText=vertices.length;
+ document.getElementById('e-count').innerText=edges.length;
+
+ document.querySelectorAll('.dim-key').forEach(button=>{
+  button.classList.toggle(
+   'active',Number(button.dataset.dim)===n
+  );
+ });
+}
+
+window.addEventListener('keydown',e=>{
+ const key=e.key.toLowerCase();
+
+ if(keys.hasOwnProperty(key))keys[key]=true;
+ if(key>='0'&&key<='9')initShape(parseInt(key));
+ if(key==='enter')toggleMenu();
+});
+
+window.addEventListener('keyup',e=>{
+ const key=e.key.toLowerCase();
+ if(keys.hasOwnProperty(key))keys[key]=false;
+});
+
+// Controles táctiles de rotación.
+document.querySelectorAll('.touch-key').forEach(button=>{
+ const key=button.dataset.key;
+
+ const release=event=>{
+  keys[key]=false;
+  button.classList.remove('active');
+
+  if(event&&button.hasPointerCapture&&
+     button.hasPointerCapture(event.pointerId)){
+   button.releasePointerCapture(event.pointerId);
+  }
+ };
+
+ button.addEventListener('pointerdown',event=>{
+  event.preventDefault();
+  keys[key]=true;
+  button.classList.add('active');
+
+  if(button.setPointerCapture)
+   button.setPointerCapture(event.pointerId);
+ });
+
+ button.addEventListener('pointerup',release);
+ button.addEventListener('pointercancel',release);
+
+ button.addEventListener('lostpointercapture',()=>{
+  keys[key]=false;
+  button.classList.remove('active');
+ });
+
+ button.addEventListener('contextmenu',e=>e.preventDefault());
+});
+
+// Selección de dimensiones.
+document.querySelectorAll('.dim-key').forEach(button=>{
+ button.addEventListener('click',()=>{
+  initShape(Number(button.dataset.dim));
+ });
+});
+
+// Mostrar y ocultar menú.
+document.getElementById('menu-toggle').addEventListener('click',()=>{
+ document.getElementById('ui-overlay').classList.toggle('hidden');
+});
+
+document.addEventListener('contextmenu',e=>e.preventDefault());
+
+// SISTEMA PARA ARRASTRAR Y GIRAR FIGURAS 3D–9D.
+let dragging=false;
+let lastPointerX=0;
+let lastPointerY=0;
+
+function rotateFromDrag(dx,dy){
+ if(currentDim<3)return;
+
+ const sensitivity=0.008;
+ let planeXZ=-1,planeYZ=-1,planeXY=-1;
+ let idx=0;
+
+ for(let i=0;i<currentDim;i++){
+  for(let j=i+1;j<currentDim;j++){
+   if(i===0&&j===1)planeXY=idx;
+   if(i===0&&j===2)planeXZ=idx;
+   if(i===1&&j===2)planeYZ=idx;
+   idx++;
+  }
+ }
+
+ if(planeXZ>=0)angles[planeXZ]+=dx*sensitivity;
+ if(planeYZ>=0)angles[planeYZ]+=dy*sensitivity;
+
+ // Rotaciones adicionales para 4D–9D.
+ if(currentDim>3){
+  const extra=sensitivity*0.28;
+
+  for(let i=0;i<angles.length;i++){
+   if(i!==planeXY&&i!==planeXZ&&i!==planeYZ){
+    angles[i]+=(dx*(i%2===0?1:-1)+
+      dy*(i%3===0?1:-0.65))*extra;
+   }
+  }
+ }
+}
+
+canvas.addEventListener('pointerdown',event=>{
+ if(currentDim<3)return;
+
+ dragging=true;
+ lastPointerX=event.clientX;
+ lastPointerY=event.clientY;
+
+ if(canvas.setPointerCapture)
+  canvas.setPointerCapture(event.pointerId);
+});
+
+canvas.addEventListener('pointermove',event=>{
+ if(!dragging)return;
+
+ const dx=event.clientX-lastPointerX;
+ const dy=event.clientY-lastPointerY;
+
+ lastPointerX=event.clientX;
+ lastPointerY=event.clientY;
+
+ rotateFromDrag(dx,dy);
+});
+
+const stopDragging=()=>{dragging=false};
+
+canvas.addEventListener('pointerup',stopDragging);
+canvas.addEventListener('pointercancel',stopDragging);
+canvas.addEventListener('lostpointercapture',stopDragging);
+
+// ROTACIÓN MULTIDIMENSIONAL.
+function rotateND(point){
+ let p=[...point];
+ let n=p.length;
+
+ if(n<2)return p;
+
+ let idx=0;
+
+ for(let i=0;i<n;i++){
+  for(let j=i+1;j<n;j++){
+   let angle=angles[idx];
+
+   if(angle!==0){
+    let valI=p[i];
+    let valJ=p[j];
+
+    p[i]=valI*Math.cos(angle)-valJ*Math.sin(angle);
+    p[j]=valI*Math.sin(angle)+valJ*Math.cos(angle);
+   }
+   idx++;
+  }
+ }
+ return p;
+}
+
+// PROYECCIÓN A 3D.
+function project(point){
+ let p=[...point];
+ let zDistance=7;
+
+ while(p.length>3){
+  let w=p.pop();
+  let factor=zDistance/Math.max(0.1,zDistance-w);
+
+  for(let i=0;i<p.length;i++)p[i]*=factor;
+ }
+
+ while(p.length<3)p.push(0);
+
+ let z=p[2];
+ let factor=4.5/Math.max(0.1,8-z);
+
+ let x=p[0]*factor;
+ let y=p[1]*factor;
+
+ const scales={
+  0:0.5,1:0.5,2:0.45,3:0.4,
+  4:0.35,5:0.28,6:0.22,
+  7:0.15,8:0.10,9:0.02
+ };
+
+ let scale=Math.min(
+  width,height
+ )*(scales[currentDim]||0.02);
+
+ if(currentDim===9){
+  scale*=(1+Math.sin(tick9D)*0.12);
+ }
+
+ return{
+  x:x*scale+width/2,
+  y:y*scale+height/2,
+  z:z
+ };
+}
+
+// CONTROLES Y MOVIMIENTO.
+function update(){
+ let speed=0.05;
+
+ if(currentDim===9)tick9D+=0.02;
+
+ if(keys.a||keys.d||keys.w||keys.s){
+
+  if(currentDim===0){
+   if(keys.a)scale0D=Math.max(2,scale0D-0.3);
+   if(keys.d)scale0D=Math.min(20,scale0D+0.3);
+  }
+
+  if(currentDim===1){
+   if(keys.a)pos1D=Math.max(-1,pos1D-0.05);
+   if(keys.d)pos1D=Math.min(1,pos1D+0.05);
+  }
+
+  let planeXY=-1,planeXZ=-1,planeYZ=-1;
+  let idx=0;
+
+  for(let i=0;i<currentDim;i++){
+   for(let j=i+1;j<currentDim;j++){
+    if(i===0&&j===1)planeXY=idx;
+    if(i===0&&j===2)planeXZ=idx;
+    if(i===1&&j===2)planeYZ=idx;
+    idx++;
+   }
+  }
+
+  if(currentDim===2){
+   if(planeXY!==-1){
+    if(keys.a)angles[planeXY]-=speed;
+    if(keys.d)angles[planeXY]+=speed;
+   }
+  }else if(currentDim>2){
+   if(planeXZ!==-1){
+    if(keys.a)angles[planeXZ]-=speed;
+    if(keys.d)angles[planeXZ]+=speed;
+   }
+
+   if(planeYZ!==-1){
+    if(keys.w)angles[planeYZ]-=speed;
+    if(keys.s)angles[planeYZ]+=speed;
+   }
+  }
+
+  if(currentDim>3){
+   let hyperSpeed=speed*0.4;
+
+   for(let i=0;i<angles.length;i++){
+    if(i!==planeXZ&&i!==planeYZ&&i!==planeXY){
+     if(keys.a||keys.d)
+      angles[i]+=hyperSpeed*(i%2===0?1:-1);
+
+     if(keys.w||keys.s)
+      angles[i]+=hyperSpeed*(i%3===0?1:-0.5);
+    }
+   }
+  }
+ }
+}
+
+// DIBUJADO CON LÍMITE DE FPS.
+let lastFrameTime=0;
+
+function draw(now=0){
+
+ const isMobile=
+  window.matchMedia('(pointer: coarse)').matches||width<700;
+
+ // En 9D bajamos a 24 FPS para reducir trabajo.
+ const targetFPS=isMobile?(currentDim>=8?24:30):60;
+ const frameInterval=1000/targetFPS;
+
+ if(now&&now-lastFrameTime<frameInterval){
+  requestAnimationFrame(draw);
+  return;
+ }
+
+ lastFrameTime=now||performance.now();
+
+ update();
+
+ ctx.fillStyle='#020205';
+ ctx.fillRect(0,0,width,height);
+
+ // DIMENSIÓN 0: PUNTO.
+ if(currentDim===0){
+  ctx.fillStyle=dimColors[0];
+  ctx.shadowBlur=6;
+  ctx.shadowColor=dimColors[0];
+
+  ctx.beginPath();
+  ctx.arc(width/2,height/2,scale0D,0,Math.PI*2);
+  ctx.fill();
+
+  requestAnimationFrame(draw);
+  return;
+ }
+
+ let projected=vertices.map(v=>project(rotateND(v)));
+ let color=dimColors[currentDim]||'#00ffff';
+
+ ctx.lineWidth=currentDim>8?0.3:
+  (currentDim>4?1.0:1.8);
+
+ const lowPowerMode=
+  window.matchMedia('(pointer: coarse)').matches||width<700;
+
+ // Desactivamos brillos costosos en móviles.
+ ctx.shadowBlur=(lowPowerMode||currentDim>4)?0:7;
+ ctx.shadowColor=color;
+
+ // DIBUJAR ARISTAS.
+ for(let edge of edges){
+  let p1=projected[edge[0]];
+  let p2=projected[edge[1]];
+
+  let avgZ=(p1.z+p2.z)/2;
+  let opacity=Math.min(1,Math.max(0.05,(avgZ+5)/10));
+
+  if(currentDim===9)opacity*=0.4;
+
+  ctx.strokeStyle=color;
+  ctx.globalAlpha=opacity;
+
+  ctx.beginPath();
+  ctx.moveTo(p1.x,p1.y);
+  ctx.lineTo(p2.x,p2.y);
+  ctx.stroke();
+ }
+
+ // PUNTO MÓVIL EN 1D.
+ if(currentDim===1){
+  let p1=projected[0];
+  let p2=projected[1];
+
+  let midX=p1.x+(p2.x-p1.x)*((pos1D+1)/2);
+  let midY=p1.y+(p2.y-p1.y)*((pos1D+1)/2);
+
+  ctx.globalAlpha=1;
+  ctx.fillStyle='#ffffff';
+  ctx.shadowBlur=10;
+  ctx.shadowColor='#fff';
+
+  ctx.beginPath();
+  ctx.arc(midX,midY,5,0,Math.PI*2);
+  ctx.fill();
+ }
+
+ ctx.globalAlpha=1;
+ ctx.shadowBlur=0;
+
+ // VÉRTICES VISIBLES HASTA 4D.
+ if(currentDim>1&&currentDim<5){
+  for(let p of projected){
+   let zVal=(p.z+5)/10;
+   let radius=Math.max(0.5,3*zVal);
+
+   ctx.fillStyle='#ffffff';
+   ctx.beginPath();
+   ctx.arc(p.x,p.y,radius,0,Math.PI*2);
+   ctx.fill();
+  }
+ }
+
+ requestAnimationFrame(draw);
+}
+
+initShape(4);
+draw();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+ window.addEventListener('load', () => {
+  navigator.serviceWorker.register('./sw.js').catch(console.error);
+ });
+}
+</script>
+</body>
+</html>
